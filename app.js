@@ -48,37 +48,103 @@ console.log(chalk.bold.blue("=".repeat(60) + "\n"));
             // Find and click "Enable" button in the popup
             let enableBtn;
             try {
-                // Try by class combination first (button has classes: cpG2SV cVzWKq cimLEg)
+                // Try by parent div and button class combination (div.__78jF3 > button.cpG2SV.cVzWKq.cimLEg)
                 enableBtn = await driver.wait(
-                    until.elementLocated(By.css('button.cpG2SV.cVzWKq.cimLEg, button.cpG2SV, button[class*="cpG2SV"]')),
+                    until.elementLocated(By.css('div.__78jF3 button.cpG2SV.cVzWKq.cimLEg')),
                     5000
                 );
             } catch (e) {
-                // Fallback to XPath by text
+                // Fallback: Try by class combination without parent
                 try {
                     enableBtn = await driver.wait(
-                        until.elementLocated(By.xpath("//button[contains(text(), 'Enable')]")),
+                        until.elementLocated(By.css('button.cpG2SV.cVzWKq.cimLEg')),
                         5000
                     );
                 } catch (e2) {
-                    // Last resort: find any button with "Enable" text
-                    const buttons = await driver.findElements(By.css('button'));
-                    for (let btn of buttons) {
-                        const text = await btn.getText();
-                        if (text && text.trim() === 'Enable') {
-                            enableBtn = btn;
-                            break;
+                    // Fallback: Try by XPath with parent div structure
+                    try {
+                        enableBtn = await driver.wait(
+                            until.elementLocated(By.xpath("//div[contains(@class, '__78jF3')]//button[contains(@class, 'cpG2SV') and contains(text(), 'Enable')]")),
+                            5000
+                        );
+                    } catch (e3) {
+                        // Last resort: find any button with "Enable" text
+                        const buttons = await driver.findElements(By.css('button'));
+                        for (let btn of buttons) {
+                            const text = await btn.getText();
+                            if (text && text.trim() === 'Enable') {
+                                enableBtn = btn;
+                                break;
+                            }
                         }
+                        if (!enableBtn) throw new Error("Enable button not found");
                     }
-                    if (!enableBtn) throw new Error("Enable button not found");
                 }
             }
+            
+            // Wait for button to be clickable
+            await driver.wait(until.elementIsVisible(enableBtn), 3000);
+            await driver.wait(until.elementIsEnabled(enableBtn), 3000);
+            
+            // Click using JavaScript to avoid interception
             await driver.executeScript("arguments[0].click();", enableBtn);
             console.log(chalk.green("✓ Clicked 'Enable' button"));
 
-            await driver.sleep(2000); // Wait for location to be set
+            await driver.sleep(3000); // Wait for location to be set
+
+            // Check for and handle any alerts
+            try {
+                const alert = await driver.switchTo().alert();
+                const alertText = await alert.getText();
+                console.log(chalk.yellow(`⚠ Alert detected: ${alertText}`));
+                await alert.accept(); // Accept/dismiss the alert
+                console.log(chalk.green("✓ Alert dismissed"));
+                await driver.sleep(1000);
+            } catch (e) {
+                // No alert present, continue normally
+            }
+
+            // Wait for the modal/overlay to disappear
+            try {
+                await driver.wait(async () => {
+                    // Check for alerts first
+                    try {
+                        const alert = await driver.switchTo().alert();
+                        await alert.accept();
+                        console.log(chalk.yellow("⚠ Alert dismissed during wait"));
+                        return false; // Continue waiting
+                    } catch (e) {
+                        // No alert, check overlays
+                    }
+
+                    const overlays = await driver.findElements(By.css('div.absolute.inset-x-0, div[tabindex="-1"]'));
+                    for (let overlay of overlays) {
+                        try {
+                            const isDisplayed = await overlay.isDisplayed();
+                            if (isDisplayed) return false; // Overlay still visible
+                        } catch (e) {
+                            // Element might be stale, continue
+                        }
+                    }
+                    return true; // No visible overlays
+                }, 8000);
+                console.log(chalk.green("✓ Location popup closed"));
+            } catch (e) {
+                console.log(chalk.yellow("ℹ Timeout waiting for popup to close, continuing..."));
+            }
+
+            await driver.sleep(1000);
         } catch (e) {
             console.log(chalk.yellow(`ℹ Location selection skipped: ${e.message}`));
+            
+            // Try to handle any lingering alerts
+            try {
+                const alert = await driver.switchTo().alert();
+                await alert.accept();
+                console.log(chalk.green("✓ Alert dismissed after error"));
+            } catch (alertErr) {
+                // No alert to handle
+            }
         }
 
         // Scroll to make login button visible
@@ -90,7 +156,7 @@ console.log(chalk.bold.blue("=".repeat(60) + "\n"));
             10000
         );
         await driver.sleep(1000);
-        await loginBtn.click();
+        await driver.executeScript("arguments[0].click();", loginBtn);
 
         // Read phone number
         const phoneNumber = readlineSync.question(chalk.cyan("Enter phone number: "));
@@ -145,7 +211,7 @@ console.log(chalk.bold.blue("=".repeat(60) + "\n"));
         console.log(chalk.green("\n✅ OTP entered successfully!"));
         await driver.sleep(3000); // Wait for login to complete
 
-        // Function to extract products from a category page
+        // Function to extract products from a search or category page
         async function extractProducts(categoryName, categoryUrl) {
             console.log(chalk.blue(`\n${"=".repeat(60)}`));
             console.log(chalk.bold.blue(`\n📦 ${categoryName.toUpperCase()}`));
@@ -290,16 +356,31 @@ console.log(chalk.bold.blue("=".repeat(60) + "\n"));
             }
         }
 
-        // Display categories and products
-        console.log(chalk.bold.magenta("\n" + "=".repeat(60)));
-        console.log(chalk.bold.magenta("🛒 ZEPTO PRODUCT CATALOG"));
-        console.log(chalk.bold.magenta("=".repeat(60) + "\n"));
+        // Main search loop
+        let continueSearching = true;
+        
+        while (continueSearching) {
+            // Ask user for search query
+            console.log(chalk.bold.magenta("\n" + "=".repeat(60)));
+            console.log(chalk.bold.magenta("🔍 SEARCH PRODUCTS"));
+            console.log(chalk.bold.magenta("=".repeat(60) + "\n"));
+            console.log(chalk.gray("Enter a search term (e.g., ice cream, chips, milk)"));
+            console.log(chalk.gray("Press Enter to exit\n"));
 
-        // Chips category
-        const chipsProducts = await extractProducts(
-            "Chips & Crisps",
-            "https://www.zepto.com/cn/munchies/chips-crisps/cid/d2c2a144-43cd-43e5-b308-92628fa68596/scid/df4f5100-c02f-4906-83b8-ddb744081a7a"
-        );
+            const searchQuery = readlineSync.question(chalk.cyan("Search for: "));
+
+            if (!searchQuery || searchQuery.trim() === '') {
+                console.log(chalk.yellow("No search query entered. Exiting..."));
+                break;
+            }
+
+            // Build search URL
+            const searchUrl = `https://www.zepto.com/search?query=${encodeURIComponent(searchQuery.trim())}`;
+            
+            console.log(chalk.blue(`\n🔎 Searching for "${searchQuery}"...\n`));
+
+            // Extract products from search results
+            const searchProducts = await extractProducts(searchQuery, searchUrl);
 
         // Function to add products to cart
         async function addProductsToCart(products, categoryUrl, categoryName) {
@@ -435,52 +516,58 @@ console.log(chalk.bold.blue("=".repeat(60) + "\n"));
                 console.log(chalk.blue("\n📋 Loading addresses..."));
                 await driver.sleep(2000);
 
-                // Try to find address elements - look for clickable address items
+                // Extract addresses using the specific structure: div.cGWaaV.cCXoJA
                 let addresses = [];
-                const addressSelectors = [
-                    'button[class*="address"]',
-                    'div[class*="address"]',
-                    'div[role="button"]',
-                    '[data-testid*="address"]',
-                    '[class*="address-item"]',
-                    '[class*="address-card"]',
-                    'div[class*="card"]',
-                    'div[class*="item"]'
-                ];
+                try {
+                    const addressElements = await driver.findElements(By.css('div.cGWaaV.cCXoJA'));
+                    
+                    for (let i = 0; i < addressElements.length; i++) {
+                        try {
+                            const el = addressElements[i];
+                            const isDisplayed = await el.isDisplayed();
+                            if (!isDisplayed) continue;
 
-                for (let selector of addressSelectors) {
-                    try {
-                        const elements = await driver.findElements(By.css(selector));
-                        for (let i = 0; i < Math.min(elements.length, 10); i++) {
+                            // Extract address label (Home, Work, Other)
+                            let label = '';
                             try {
-                                const el = elements[i];
-                                const isDisplayed = await el.isDisplayed();
-                                if (!isDisplayed) continue;
-
-                                const text = await el.getText();
-                                if (text && text.length > 20 && text.length < 500) {
-                                    // Check if it looks like an address
-                                    const hasAddressKeywords = /\d+|street|road|lane|area|city|pin|pincode|state|india|home|office|address|deliver|location/i.test(text);
-                                    if (hasAddressKeywords || text.includes(',')) {
-                                        // Avoid duplicates
-                                        if (!addresses.some(a => a.text === text.trim())) {
-                                            addresses.push({
-                                                index: addresses.length,
-                                                text: text.trim().substring(0, 200),
-                                                elementIndex: i,
-                                                selector: selector
-                                            });
-                                        }
-                                    }
-                                }
+                                const labelElement = await el.findElement(By.css('div.c4ZmYS[data-size="small"]'));
+                                label = await labelElement.getText();
                             } catch (e) {
-                                // Skip this element
+                                // No label found
                             }
+
+                            // Extract address text
+                            let addressText = '';
+                            try {
+                                const addressElement = await el.findElement(By.css('div.ctyATk[data-size="small"] span.line-clamp-2'));
+                                addressText = await addressElement.getText();
+                            } catch (e) {
+                                // Try alternative selector
+                                try {
+                                    const addressElement = await el.findElement(By.css('div.ctyATk span'));
+                                    addressText = await addressElement.getText();
+                                } catch (e2) {
+                                    // Fallback: get all text
+                                    addressText = await el.getText();
+                                }
+                            }
+
+                            if (addressText && addressText.trim().length > 10) {
+                                const fullText = label ? `${label}: ${addressText}` : addressText;
+                                addresses.push({
+                                    index: i,
+                                    label: label || 'Address',
+                                    text: addressText.trim(),
+                                    fullText: fullText.trim(),
+                                    element: el
+                                });
+                            }
+                        } catch (e) {
+                            // Skip this element
                         }
-                        if (addresses.length > 0) break; // Found addresses, stop searching
-                    } catch (e) {
-                        // Try next selector
                     }
+                } catch (e) {
+                    console.log(chalk.yellow(`⚠ Error extracting addresses: ${e.message}`));
                 }
 
                 if (addresses.length === 0) {
@@ -494,8 +581,10 @@ console.log(chalk.bold.blue("=".repeat(60) + "\n"));
                 console.log(chalk.bold.cyan("=".repeat(60) + "\n"));
 
                 addresses.forEach((addr, index) => {
+                    const labelIcon = addr.label === 'Home' ? '🏠' : addr.label === 'Work' ? '💼' : '📍';
+                    console.log(chalk.white(`${index + 1}. ${labelIcon} ${chalk.bold.green(addr.label)}`));
                     const addrText = addr.text.length > 70 ? addr.text.substring(0, 67) + "..." : addr.text;
-                    console.log(chalk.white(`${index + 1}. ${chalk.bold(addrText)}`));
+                    console.log(chalk.gray(`   ${addrText}`));
                     console.log("");
                 });
 
@@ -511,33 +600,31 @@ console.log(chalk.bold.blue("=".repeat(60) + "\n"));
                 }
 
                 // Click on selected address
-                console.log(chalk.blue(`\n📍 Selecting address ${selectedIndex + 1}...`));
+                console.log(chalk.blue(`\n📍 Selecting address ${selectedIndex + 1} (${addresses[selectedIndex].label})...`));
 
                 const selectedAddress = addresses[selectedIndex];
                 let addressClicked = false;
 
-                // Try to find and click using the stored selector and index
+                // Click using the stored element reference
                 try {
-                    const addressElements = await driver.findElements(By.css(selectedAddress.selector));
-                    if (addressElements.length > selectedAddress.elementIndex) {
-                        const addressElement = addressElements[selectedAddress.elementIndex];
-                        await driver.executeScript("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", addressElement);
-                        await driver.sleep(500);
-                        await driver.executeScript("arguments[0].click();", addressElement);
-                        addressClicked = true;
-                        console.log(chalk.green("✓ Address selected"));
-                    }
+                    const addressElement = selectedAddress.element;
+                    await driver.executeScript("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", addressElement);
+                    await driver.sleep(500);
+                    await driver.executeScript("arguments[0].click();", addressElement);
+                    addressClicked = true;
+                    console.log(chalk.green("✓ Address selected"));
                 } catch (e) {
-                    // Fallback: Try to find by text content
+                    // Fallback: Try to find by class and index
                     try {
-                        const addressByText = await driver.findElement(
-                            By.xpath(`//*[contains(text(), "${selectedAddress.text.substring(0, 50).replace(/"/g, '')}")]`)
-                        );
-                        await driver.executeScript("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", addressByText);
-                        await driver.sleep(500);
-                        await driver.executeScript("arguments[0].click();", addressByText);
-                        addressClicked = true;
-                        console.log(chalk.green("✓ Address selected"));
+                        const addressElements = await driver.findElements(By.css('div.cGWaaV.cCXoJA'));
+                        if (addressElements.length > selectedAddress.index) {
+                            const addressElement = addressElements[selectedAddress.index];
+                            await driver.executeScript("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", addressElement);
+                            await driver.sleep(500);
+                            await driver.executeScript("arguments[0].click();", addressElement);
+                            addressClicked = true;
+                            console.log(chalk.green("✓ Address selected"));
+                        }
                     } catch (e2) {
                         console.log(chalk.yellow("⚠ Could not click address automatically. Please select manually."));
                     }
@@ -568,24 +655,37 @@ console.log(chalk.bold.blue("=".repeat(60) + "\n"));
             }
         }
 
-        // Ask user to add products to cart
-        if (chipsProducts && chipsProducts.length > 0) {
-            await addProductsToCart(
-                chipsProducts,
-                "https://www.zepto.com/cn/munchies/chips-crisps/cid/d2c2a144-43cd-43e5-b308-92628fa68596/scid/df4f5100-c02f-4906-83b8-ddb744081a7a",
-                "Chips & Crisps"
-            );
+            // Ask user to add products to cart
+            if (searchProducts && searchProducts.length > 0) {
+                await addProductsToCart(
+                    searchProducts,
+                    searchUrl,
+                    searchQuery
+                );
+            }
 
-            // Ask if user wants to checkout
+            // Ask if user wants to search for another category
             console.log(chalk.cyan("\n" + "=".repeat(60)));
-            const proceedToCheckout = readlineSync.question(
-                chalk.cyan("Proceed to checkout and place order? (y/n): ")
+            const searchAgain = readlineSync.question(
+                chalk.cyan("Search for another category? (y/n): ")
             );
 
-            if (proceedToCheckout.toLowerCase() === 'y' || proceedToCheckout.toLowerCase() === 'yes') {
-                await checkoutAndPlaceOrder();
+            if (searchAgain.toLowerCase() === 'y' || searchAgain.toLowerCase() === 'yes') {
+                continueSearching = true;
             } else {
-                console.log(chalk.yellow("Checkout skipped."));
+                continueSearching = false;
+                
+                // Ask if user wants to checkout
+                console.log(chalk.cyan("\n" + "=".repeat(60)));
+                const proceedToCheckout = readlineSync.question(
+                    chalk.cyan("Proceed to checkout and place order? (y/n): ")
+                );
+
+                if (proceedToCheckout.toLowerCase() === 'y' || proceedToCheckout.toLowerCase() === 'yes') {
+                    await checkoutAndPlaceOrder();
+                } else {
+                    console.log(chalk.yellow("Checkout skipped."));
+                }
             }
         }
 
