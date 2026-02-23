@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://github.com/suhailroushan13/zeptoCli",
+      "permanent": true
+    }
+  ]
+}
