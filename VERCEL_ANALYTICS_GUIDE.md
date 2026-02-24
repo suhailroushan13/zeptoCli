@@ -30,11 +30,12 @@ This guide will help you get started with using Vercel Web Analytics on your pro
   bun i vercel
   ```
 
-### Enable Web Analytics in Vercel
+- ### Enable Web Analytics in Vercel
 
-On the [Vercel dashboard](https://vercel.com/dashboard), select your Project and then click the **Analytics** tab and click **Enable** from the dialog.
+  On the [Vercel dashboard](/dashboard), select your Project and then click the **Analytics** tab and click **Enable** from the dialog.
 
-> **💡 Note:** Enabling Web Analytics will add new routes (scoped at `/_vercel/insights/*`) after your next deployment.
+  > **💡 Note:** Enabling Web Analytics will add new routes (scoped at `/_vercel/insights/*`)
+  > after your next deployment.
 
 ## Framework-Specific Instructions
 
@@ -505,7 +506,8 @@ For plain HTML sites, you can add the following script to your `.html` files:
 <script defer src="/_vercel/insights/script.js"></script>
 ```
 
-> **💡 Note:** When using the HTML implementation, there is no need to install the `@vercel/analytics` package. However, there is no route support.
+> **💡 Note:** When using the HTML implementation, there is no need to install the
+> `@vercel/analytics` package. However, there is no route support.
 
 ---
 
@@ -517,11 +519,13 @@ Deploy your app using the following command:
 vercel deploy
 ```
 
-If you haven't already, we also recommend [connecting your project's Git repository](https://vercel.com/docs/git#deploying-a-git-repository), which will enable Vercel to deploy your latest commits to main without terminal commands.
+If you haven't already, we also recommend [connecting your project's Git repository](/docs/git#deploying-a-git-repository), which will enable Vercel to deploy your latest commits to main without terminal commands.
 
 Once your app is deployed, it will start tracking visitors and page views.
 
-> **💡 Note:** If everything is set up properly, you should be able to see a Fetch/XHR request in your browser's Network tab from `/_vercel/insights/view` when you visit any page.
+> **💡 Note:** If everything is set up properly, you should be able to see a Fetch/XHR
+> request in your browser's Network tab from `/_vercel/insights/view` when you
+> visit any page.
 
 ---
 
@@ -529,13 +533,13 @@ Once your app is deployed, it will start tracking visitors and page views.
 
 Once your app is deployed, and users have visited your site, you can view your data in the dashboard.
 
-To do so, go to your [dashboard](https://vercel.com/dashboard), select your project, and click the **Analytics** tab.
+To do so, go to your [dashboard](/dashboard), select your project, and click the **Analytics** tab.
 
-After a few days of visitors, you'll be able to start exploring your data by viewing and [filtering](https://vercel.com/docs/analytics/filtering) the panels.
+After a few days of visitors, you'll be able to start exploring your data by viewing and [filtering](/docs/analytics/filtering) the panels.
 
-Users on Pro and Enterprise plans can also add [custom events](https://vercel.com/docs/analytics/custom-events) to their data to track user interactions such as button clicks, form submissions, or purchases.
+Users on Pro and Enterprise plans can also add [custom events](/docs/analytics/custom-events) to their data to track user interactions such as button clicks, form submissions, or purchases.
 
-Learn more about how Vercel supports [privacy and data compliance standards](https://vercel.com/docs/analytics/privacy-policy) with Vercel Web Analytics.
+Learn more about how Vercel supports [privacy and data compliance standards](/docs/analytics/privacy-policy) with Vercel Web Analytics.
 
 ---
 
@@ -543,9 +547,9 @@ Learn more about how Vercel supports [privacy and data compliance standards](htt
 
 Now that you have Vercel Web Analytics set up, you can explore the following topics to learn more:
 
-- [Learn how to use the `@vercel/analytics` package](https://vercel.com/docs/analytics/package)
-- [Learn how to set update custom events](https://vercel.com/docs/analytics/custom-events)
-- [Learn about filtering data](https://vercel.com/docs/analytics/filtering)
-- [Read about privacy and compliance](https://vercel.com/docs/analytics/privacy-policy)
-- [Explore pricing](https://vercel.com/docs/analytics/limits-and-pricing)
-- [Troubleshooting](https://vercel.com/docs/analytics/troubleshooting)
+- [Learn how to use the `@vercel/analytics` package](/docs/analytics/package)
+- [Learn how to set update custom events](/docs/analytics/custom-events)
+- [Learn about filtering data](/docs/analytics/filtering)
+- [Read about privacy and compliance](/docs/analytics/privacy-policy)
+- [Explore pricing](/docs/analytics/limits-and-pricing)
+- [Troubleshooting](/docs/analytics/troubleshooting)
